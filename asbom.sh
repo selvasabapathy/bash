@@ -3,6 +3,7 @@
 # credentials
 export JF_PLATFORM_URL="https://soleng.jfrog.io"
 export JF_PLATFORM_PORT=443
+export JF_TOKEN_USER="${JF_TOKEN_USER:-'NoAccessTokenSet'}"
 export JF_ACCESS_TOKEN="${JF_ACCESS_TOKEN:-'NoAccessTokenSet'}"
 export JF_REFERENCE_TOKEN="${JF_REFERENCE_TOKEN:-'NoReferenceTokenSet'}"
 
@@ -67,13 +68,19 @@ curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
   } 
 }'
 
-exit 0
-
 # # prep a sample docker image to scan (assumes docker runtime is running)
 # docker pull webgoat/webgoat:latest
 
 # # upload the webgoat (assumes boaz-docker-local exists & indexed)
-# jf rt u webgoat/webgoat $REPO_NAME
+#jf rt u webgoat:latest ${REPO_NAME}
+
+echo ${JF_PLATFORM_URL:8}
+docker login -u ${JF_TOKEN_USER} -p ${JF_REFERENCE_TOKEN} ${JF_PLATFORM_URL}
+docker tag webgoat/webgoat:latest ${JF_PLATFORM_URL:8}/${REPO_NAME}/webgoat:latest
+docker push ${JF_PLATFORM_URL:8}/${REPO_NAME}/webgoat:latest
+
+exit 0
+
 
 # # wait for the scan to complete (need a better solution)
 # sleep 300s
