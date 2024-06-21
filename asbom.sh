@@ -43,38 +43,31 @@ curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/repositories
     ]
   }'
 
-curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/repositories/${REPO_NAME}" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}"
-
-exit 0
-
 # configure repo for scan
 
 # curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config/${REPO_NAME}" \
 #   -H "Content-Type: application/json" \
-#   -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" 
+#   -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" 
 
-# curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
-#   -H "Content-Type: application/json" \
-#   -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" \
-#   -d '{ 
-#   "repo_name": "${REPO_NAME}", 
-#   "repo_config": { 
-#     "vuln_contextual_analysis": true,
-#     "exposures": { 
-#       "scanners_category": { 
-#         "services_scan": true, 
-#         "secrets_scan": true, 
-#         "applications_scan": true 
-#       } 
-#     }, 
-#     "retention_in_days": 30 
-#   } 
-# }'
+curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+  -d '{ 
+  "repo_name": '"\"${REPO_NAME}\""', 
+  "repo_config": { 
+    "vuln_contextual_analysis": true,
+    "exposures": { 
+      "scanners_category": { 
+        "services_scan": true, 
+        "secrets_scan": true, 
+        "applications_scan": true 
+      } 
+    }, 
+    "retention_in_days": 30 
+  } 
+}'
 
-
-# exit 0
+exit 0
 
 # # prep a sample docker image to scan (assumes docker runtime is running)
 # docker pull webgoat/webgoat:latest
