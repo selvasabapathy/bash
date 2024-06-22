@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# to run this setup credentials & repo/artifact info (see below) as env variables
+# install jfrog cli and docker runtime
+# install jq (if mac then run 'brew install jq')
+
 # credentials
 export JF_PLATFORM_URL="https://soleng.jfrog.io"
 export JF_PLATFORM_PORT=443
@@ -79,37 +83,68 @@ curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
   } 
 }'
 
-# prep a sample docker image to scan (assumes docker runtime is running)
+# # prep a sample docker image to scan (assumes docker runtime is running)
 docker pull ${ARTIFACT_ORG}/${ARTIFACT_NAME_TAG}
 
-# upload the webgoat (assumes boaz-docker-local exists)
+# # upload the webgoat (assumes boaz-docker-local exists)
 docker login -u ${JF_TOKEN_USER} -p ${JF_REFERENCE_TOKEN} ${JF_PLATFORM_URL}
 docker tag webgoat/webgoat:latest ${JF_PLATFORM_URL:8}/${REPO_NAME}/${ARTIFACT_NAME_TAG}
 docker push ${JF_PLATFORM_URL:8}/${REPO_NAME}/${ARTIFACT_NAME_TAG}
 
-# wait for the scan to complete (need a better solution)
-sleep 300s
+# # wait for the scan to complete (need a better solution)
+sha1=$(curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/storage/${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" | jq -r '.checksums.sha1')
+sha256=$(curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/storage/${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" | jq -r '.checksums.sha256')
+wait=1
+isDone="unknown"
+while [ "${isDone}" != "scanned" ]
+do
+  echo "Waiting ${wait} times..."
+  wait=$(( $wait + 1 ))
+  sleep 10
+  isDone=$(curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/scan/status/artifact" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+    -d '{
+    "repository_pkg_type": "Docker",
+    "path": '\"${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json\"',
+    "sha256": '\"${sha256}\"',
+    "sha1": '\"${sha1}\"'
+    }' | jq -r '.status')
+  echo "Scan completed? ${isDone}"
+  if [ ${wait} -gt 60 ]
+  then
+    echo "Waited loooong.... breaking!"
+    break
+  fi
+done
 
 # download SBOM (CycloneDX with VEX)
-curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v2/component/exportDetails" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
-  -d '{
-  "package_type": "docker",
-  "component_name": '"\"${ARTIFACT_NAME_TAG}\""',
-  "path": '"\"${REPO_NAME}"/"${ARTIFACT_NAME}"/"${ARTIFACT_TAG}"/manifest.json\"',
-  "violations": true,
-  "include_ignored_violations": true,
-  "license": true,
-  "exclude_unknown": true,
-  "vulnerabilities": true,
-  "operational_risk": true,
-  "secrets": true,
-  "services": true,
-  "applications": true,
-  "output_format": "pdf",
-  "cyclonedx": true,
-  "cyclonedx_format": "json",
-  "vex": true
-  }' \
-  -o "${ARTIFACT_NAME}".zip
+if [ "${isDone}" == "scanned" ]
+then
+  curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v2/component/exportDetails" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+    -d '{
+    "package_type": "docker",
+    "component_name": '"\"${ARTIFACT_NAME_TAG}\""',
+    "path": '"\"${REPO_NAME}"/"${ARTIFACT_NAME}"/"${ARTIFACT_TAG}"/manifest.json\"',
+    "violations": true,
+    "include_ignored_violations": true,
+    "license": true,
+    "exclude_unknown": true,
+    "vulnerabilities": true,
+    "operational_risk": true,
+    "secrets": true,
+    "services": true,
+    "applications": true,
+    "output_format": "pdf",
+    "cyclonedx": true,
+    "cyclonedx_format": "json",
+    "vex": true
+    }' \
+    -o "${ARTIFACT_NAME}".zip
+fi
