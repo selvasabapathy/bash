@@ -3,12 +3,13 @@
 # credentials
 export JF_PLATFORM_URL="https://soleng.jfrog.io"
 export JF_PLATFORM_PORT=443
-export JF_TOKEN_USER="${JF_TOKEN_USER:-'NoAccessTokenSet'}"
+export JF_TOKEN_USER="${JF_TOKEN_USER:-'NoUserSet'}"
 export JF_ACCESS_TOKEN="${JF_ACCESS_TOKEN:-'NoAccessTokenSet'}"
 export JF_REFERENCE_TOKEN="${JF_REFERENCE_TOKEN:-'NoReferenceTokenSet'}"
 
-# echo credentials (for test, to be removed later)
+# echo credentials
 # echo "URL: ${JF_PLATFORM_URL}"
+# echo "USER: ${JF_TOKEN_USER}"
 # echo "PORT: ${JF_PLATFORM_PORT}"
 # echo "TOKEN: ${JF_ACCESS_TOKEN}"
 
@@ -26,9 +27,19 @@ jf rt ping
 
 # repo name (assumes repo exists)
 export REPO_NAME="boaz-docker-local"
+export ARTIFACT_ORG="webgoat"
+export ARTIFACT_NAME="webgoat"
+export ARTIFACT_TAG="latest"
+export ARTIFACT_NAME_TAG="${ARTIFACT_NAME}:${ARTIFACT_TAG}"
+
+# echo repo & artifact
+# echo "REPO: ${REPO_NAME}"
+# echo "ARTIFACT ORG: ${ARTIFACT_ORG}"
+# echo "ARTIFACT NAME: ${ARTIFACT_NAME}"
+# echo "ARTIFACT TAG: ${ARTIFACT_TAG}"
+# echo "ARTIFACT NAME TAG: ${ARTIFACT_NAME_TAG}"
 
 # enable repo indexing
-
 # curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/repositories/${REPO_NAME}" \
 #   -H "Content-Type: application/json" \
 #   -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}"
@@ -68,44 +79,37 @@ curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
   } 
 }'
 
-# # prep a sample docker image to scan (assumes docker runtime is running)
-# docker pull webgoat/webgoat:latest
+# prep a sample docker image to scan (assumes docker runtime is running)
+docker pull ${ARTIFACT_ORG}/${ARTIFACT_NAME_TAG}
 
-# # upload the webgoat (assumes boaz-docker-local exists & indexed)
-#jf rt u webgoat:latest ${REPO_NAME}
-
-echo ${JF_PLATFORM_URL:8}
+# upload the webgoat (assumes boaz-docker-local exists)
 docker login -u ${JF_TOKEN_USER} -p ${JF_REFERENCE_TOKEN} ${JF_PLATFORM_URL}
-docker tag webgoat/webgoat:latest ${JF_PLATFORM_URL:8}/${REPO_NAME}/webgoat:latest
-docker push ${JF_PLATFORM_URL:8}/${REPO_NAME}/webgoat:latest
+docker tag webgoat/webgoat:latest ${JF_PLATFORM_URL:8}/${REPO_NAME}/${ARTIFACT_NAME_TAG}
+docker push ${JF_PLATFORM_URL:8}/${REPO_NAME}/${ARTIFACT_NAME_TAG}
 
-exit 0
+# wait for the scan to complete (need a better solution)
+sleep 300s
 
-
-# # wait for the scan to complete (need a better solution)
-# sleep 300s
-
-# # download SBOM (CycloneDX with VEX)
-# curl -XPOST "${JF_PLATFORM_URL}//xray/api/v2/component/exportDetails" \
-#   -H "Content-Type: application/json" \
-#   -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" \
-#   -d @- << EOF
-# {
-#   "package_type": "docker",
-#   "component_name": "webgoat:latest",
-#   "path": "${REPO_NAME}/webgoat/latest/manifest.json",
-#   "violations": true,
-#   "include_ignored_violations": true,
-#   "license": true,
-#   "exclude_unknown": true,
-#   "operational_risk": true,
-#   "security": true,
-#   "secrets": true,
-#   "services": true,
-#   "applications": true,
-#   "output_format": "pdf"
-#   "cyclonedx": true,
-#   "cyclonedx_format": "json",
-#   "vex": true
-# }
-# EOF
+# download SBOM (CycloneDX with VEX)
+curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v2/component/exportDetails" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+  -d '{
+  "package_type": "docker",
+  "component_name": '"\"${ARTIFACT_NAME_TAG}\""',
+  "path": '"\"${REPO_NAME}"/"${ARTIFACT_NAME}"/"${ARTIFACT_TAG}"/manifest.json\"',
+  "violations": true,
+  "include_ignored_violations": true,
+  "license": true,
+  "exclude_unknown": true,
+  "vulnerabilities": true,
+  "operational_risk": true,
+  "secrets": true,
+  "services": true,
+  "applications": true,
+  "output_format": "pdf",
+  "cyclonedx": true,
+  "cyclonedx_format": "json",
+  "vex": true
+  }' \
+  -o "${ARTIFACT_NAME}".zip
