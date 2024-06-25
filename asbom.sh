@@ -17,6 +17,32 @@ export JF_REFERENCE_TOKEN="${JF_REFERENCE_TOKEN:-'NoReferenceTokenSet'}"
 # echo "PORT: ${JF_PLATFORM_PORT}"
 # echo "TOKEN: ${JF_ACCESS_TOKEN}"
 
+# Check Prerequisites....
+
+# Check if jfrog cli is installed
+if ! command -v jf >/dev/null 2>&1; then
+    echo "jf is not installed. Exiting. Please install the JFrog CLI using your package manager (ex: https://jfrog.com/getcli/)"
+    exit 1
+fi
+
+# Check if curl is installed
+if ! command -v curl >/dev/null 2>&1; then
+    echo "curl is not installed. Exiting."
+    exit 1
+fi
+
+# Check if jq is installed
+if ! command -v jq >/dev/null 2>&1; then
+    echo "jq is not installed. Exiting. Please install jq with your package manager (ex: 'brew install jq')"
+    exit 1
+fi
+
+# Check if Docker daemon is running
+if ! docker info >/dev/null 2>&1; then
+    echo "Docker daemon is not running. Exiting."
+    exit 1
+fi
+
 # configure JFrog CLI with a default profile
 export JFROG_SERVICE_ID="solengserver"
 jf c rm "${JFROG_SERVICE_ID}" --quiet
@@ -27,7 +53,12 @@ jf c use "${JFROG_SERVICE_ID}"
 # curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/system/ping" \
 #   -H "Content-Type: text/plain" \
 #   -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}"
-jf rt ping
+
+# Check if JFrog CLI command "jf rt ping" is successful
+if ! jf rt ping >/dev/null 2>&1; then
+    echo "JFrog ping was not successful. Check your server URL and access tokens."
+    exit 1
+fi
 
 # repo name (assumes repo exists)
 export REPO_NAME="boaz-docker-local"
@@ -132,16 +163,6 @@ then
     "package_type": "docker",
     "component_name": '"\"${ARTIFACT_NAME_TAG}\""',
     "path": '"\"${REPO_NAME}"/"${ARTIFACT_NAME}"/"${ARTIFACT_TAG}"/manifest.json\"',
-    "violations": true,
-    "include_ignored_violations": true,
-    "license": true,
-    "exclude_unknown": true,
-    "vulnerabilities": true,
-    "operational_risk": true,
-    "secrets": true,
-    "services": true,
-    "applications": true,
-    "output_format": "pdf",
     "cyclonedx": true,
     "cyclonedx_format": "json",
     "vex": true
