@@ -31,28 +31,88 @@ else
 fi
 
 # credentials
-echo ""
-echo "Enter you Artifactory URL (eg: hts1.jfrog.io): "
-read JF_URL
-export JF_PLATFORM_URL=https://${JF_URL}
-echo $JF_PLATFORM_URL
+
+# echo ""
+# echo "Enter you Artifactory URL (eg: hts1.jfrog.io): "
+# read JF_URL
+# export JF_PLATFORM_URL=https://${JF_URL}
+# echo $JF_PLATFORM_URL
 # export JF_PLATFORM_URL="https://soleng.jfrog.io"
 # export JF_PLATFORM_PORT=443
-echo ""
-echo "Enter username: "
-read JF_TOKEN_USER
-export JF_TOKEN_USER
+# Define the name of the variable to check
+      # VAR_NAME="JF_TOKEN_USER"
+      # # Use the 'export -p' command to list all exported variables and grep for the variable name
+      # if export -p | grep -q "^declare -x $VAR_NAME="; then
+      #   echo "The variable $VAR_NAME is exported globally with the value: ${!VAR_NAME}"
+      # else
+      #   echo "The variable $VAR_NAME is not exported globally."
+      #   echo "Please enter the UserName: "
+      #   read -r JF_TOKEN_USER
+      #   export "$VAR_NAME"=$JF_TOKEN_USER
+      #   echo "$VAR_NAME has been exported globally with the value: ${!VAR_NAME}"
+      # fi
 
-echo ""
-echo "Enter Token: "
-read JF_ACCESS_TOKEN
-export JF_ACCESS_TOKEN
+export JFCHECK=`echo $JF_PLATFORM_URL`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable JF_PLATFORM_URL is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter your Artifactory URL (eg: hts1.jfrog.io): "
+  read -r value
+  export "JF_PLATFORM_URL"="$value"
+  # echo "JF_PLATFORM_URL has been exported globally with the value: ${JF_PLATFORM_URL}"
+fi
+
+export "JF_URL"=`echo $JF_PLATFORM_URL | sed 's|https://||'`
+export JFCHECK=`echo $JF_TOKEN_USER`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable JF_TOKEN_USER is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter Artifactory UserName: "
+  read -r value
+  export "JF_TOKEN_USER"="$value"
+fi
+
+export JFCHECK=`echo $JF_ACCESS_TOKEN`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable JF_ACCESS_TOKEN is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter Token: "
+  read -r value
+  export "JF_ACCESS_TOKEN"="$value"
+fi
+
+# echo ""
+# echo "Enter username: "
+# read JF_TOKEN_USER
+# export JF_TOKEN_USER
+
+# echo ""
+# echo "Enter Token: "
+# read JF_ACCESS_TOKEN
+# export JF_ACCESS_TOKEN
 # export JF_REFERENCE_TOKEN=${JF_ACCESS_TOKEN}
 
-echo ""
-echo "Enter repo name: "
-read REPO_NAME
-export REPO_NAME
+export JFCHECK=`echo $REPO_NAME`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable REPO_NAME is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter Repository Name: "
+  read -r value
+  export "REPO_NAME"="$value"
+fi
+
+# echo ""
+# echo "Enter repo name: "
+# read REPO_NAME
+# export REPO_NAME
 export ARTIFACT_ORG="webgoat"
 export ARTIFACT_NAME="webgoat"
 export ARTIFACT_TAG="latest"
