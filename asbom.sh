@@ -31,27 +31,9 @@ else
 fi
 
 # credentials
-
-# echo ""
-# echo "Enter you Artifactory URL (eg: hts1.jfrog.io): "
-# read JF_URL
-# export JF_PLATFORM_URL=https://${JF_URL}
-# echo $JF_PLATFORM_URL
-# export JF_PLATFORM_URL="https://soleng.jfrog.io"
-# export JF_PLATFORM_PORT=443
-# Define the name of the variable to check
-      # VAR_NAME="JF_TOKEN_USER"
-      # # Use the 'export -p' command to list all exported variables and grep for the variable name
-      # if export -p | grep -q "^declare -x $VAR_NAME="; then
-      #   echo "The variable $VAR_NAME is exported globally with the value: ${!VAR_NAME}"
-      # else
-      #   echo "The variable $VAR_NAME is not exported globally."
-      #   echo "Please enter the UserName: "
-      #   read -r JF_TOKEN_USER
-      #   export "$VAR_NAME"=$JF_TOKEN_USER
-      #   echo "$VAR_NAME has been exported globally with the value: ${!VAR_NAME}"
-      # fi
-
+#
+# Check for JPD URL
+echo ""
 export JFCHECK=`echo $JF_PLATFORM_URL`
 
 if [ -n "${JFCHECK}" ]
@@ -65,6 +47,8 @@ else
 fi
 
 export "JF_URL"=`echo $JF_PLATFORM_URL | sed 's|https://||'`
+
+# Check for JPD Username
 export JFCHECK=`echo $JF_TOKEN_USER`
 
 if [ -n "${JFCHECK}" ]
@@ -76,28 +60,19 @@ else
   export "JF_TOKEN_USER"="$value"
 fi
 
+# check for token
 export JFCHECK=`echo $JF_ACCESS_TOKEN`
 
 if [ -n "${JFCHECK}" ]
 then
-  echo "The variable JF_ACCESS_TOKEN is exported globally with the value: ${JFCHECK}"
+  echo "The variable JF_ACCESS_TOKEN is exported globally"
 else
   echo "Enter Token: "
   read -r value
   export "JF_ACCESS_TOKEN"="$value"
 fi
 
-# echo ""
-# echo "Enter username: "
-# read JF_TOKEN_USER
-# export JF_TOKEN_USER
-
-# echo ""
-# echo "Enter Token: "
-# read JF_ACCESS_TOKEN
-# export JF_ACCESS_TOKEN
-# export JF_REFERENCE_TOKEN=${JF_ACCESS_TOKEN}
-
+# check repo name
 export JFCHECK=`echo $REPO_NAME`
 
 if [ -n "${JFCHECK}" ]
@@ -109,10 +84,7 @@ else
   export "REPO_NAME"="$value"
 fi
 
-# echo ""
-# echo "Enter repo name: "
-# read REPO_NAME
-# export REPO_NAME
+
 export ARTIFACT_ORG="webgoat"
 export ARTIFACT_NAME="webgoat"
 export ARTIFACT_TAG="latest"
