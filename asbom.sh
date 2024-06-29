@@ -1,87 +1,118 @@
 #!/bin/bash
 
-# to run this setup credentials & repo/artifact info (see below) as env variables
-# install jfrog cli and docker runtime
-# install jq (if mac then run 'brew install jq')
+###################################################
+# This script is used to download SBOM report
+#					
+# Author:	Selva Sabapathy 
+# Modified-by: Jagan Sekaran
+###################################################
+
+##############
+# Description:
+##############
+echo
+echo "======================================================="
+echo "This script will push a docker image to Artifactory"
+echo "Do a Xray scan and downloads SBOM reports"
+echo "======================================================="
+echo
+sleep 1
+
+## Pre-requesties check 
+
+# jq check
+echo "Checking if JQ was installed..."
+if ! command -v jq &> /dev/null
+then
+    echo "JQ could not be found"
+    exit 1
+else 
+  echo "JQ exists"
+fi
 
 # credentials
-export JF_PLATFORM_URL="https://soleng.jfrog.io"
-export JF_PLATFORM_PORT=443
-export JF_TOKEN_USER="${JF_TOKEN_USER:-'NoUserSet'}"
-export JF_ACCESS_TOKEN="${JF_ACCESS_TOKEN:-'NoAccessTokenSet'}"
-export JF_REFERENCE_TOKEN="${JF_REFERENCE_TOKEN:-'NoReferenceTokenSet'}"
+#
+# Check for JPD URL
+echo ""
+export JFCHECK=`echo $JF_PLATFORM_URL`
 
-# echo credentials
-# echo "URL: ${JF_PLATFORM_URL}"
-# echo "USER: ${JF_TOKEN_USER}"
-# echo "PORT: ${JF_PLATFORM_PORT}"
-# echo "TOKEN: ${JF_ACCESS_TOKEN}"
-
-# Check Prerequisites....
-
-# Check if jfrog cli is installed
-if ! command -v jf >/dev/null 2>&1; then
-    echo "jf is not installed. Exiting. Please install the JFrog CLI using your package manager (ex: https://jfrog.com/getcli/)"
-    exit 1
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable JF_PLATFORM_URL is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter your Artifactory URL (eg: hts1.jfrog.io): "
+  read -r value
+  export "JF_PLATFORM_URL"="$value"
+  # echo "JF_PLATFORM_URL has been exported globally with the value: ${JF_PLATFORM_URL}"
 fi
 
-# Check if curl is installed
-if ! command -v curl >/dev/null 2>&1; then
-    echo "curl is not installed. Exiting."
-    exit 1
+export "JF_URL"=`echo $JF_PLATFORM_URL | sed 's|https://||'`
+
+# Check for JPD Username
+export JFCHECK=`echo $JF_TOKEN_USER`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable JF_TOKEN_USER is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter Artifactory UserName: "
+  read -r value
+  export "JF_TOKEN_USER"="$value"
 fi
 
-# Check if jq is installed
-if ! command -v jq >/dev/null 2>&1; then
-    echo "jq is not installed. Exiting. Please install jq with your package manager (ex: 'brew install jq')"
-    exit 1
+# check for token
+export JFCHECK=`echo $JF_ACCESS_TOKEN`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable JF_ACCESS_TOKEN is exported globally"
+else
+  echo "Enter Token: "
+  read -r value
+  export "JF_ACCESS_TOKEN"="$value"
 fi
 
-# Check if Docker daemon is running
-if ! docker info >/dev/null 2>&1; then
-    echo "Docker daemon is not running. Exiting."
-    exit 1
+# check repo name
+export JFCHECK=`echo $REPO_NAME`
+
+if [ -n "${JFCHECK}" ]
+then
+  echo "The variable REPO_NAME is exported globally with the value: ${JFCHECK}"
+else
+  echo "Enter Repository Name: "
+  read -r value
+  export "REPO_NAME"="$value"
 fi
 
-# configure JFrog CLI with a default profile
-export JFROG_SERVICE_ID="solengserver"
-jf c rm "${JFROG_SERVICE_ID}" --quiet
-jf c add "${JFROG_SERVICE_ID}" --url="${JF_PLATFORM_URL}" --access-token="${JF_ACCESS_TOKEN}" --interactive=false
-jf c use "${JFROG_SERVICE_ID}"
 
-# test connection to get a OK
-# curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/system/ping" \
-#   -H "Content-Type: text/plain" \
-#   -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}"
-
-# Check if JFrog CLI command "jf rt ping" is successful
-if ! jf rt ping >/dev/null 2>&1; then
-    echo "JFrog ping was not successful. Check your server URL and access tokens."
-    exit 1
-fi
-
-# repo name (assumes repo exists)
-export REPO_NAME="boaz-docker-local"
 export ARTIFACT_ORG="webgoat"
 export ARTIFACT_NAME="webgoat"
 export ARTIFACT_TAG="latest"
 export ARTIFACT_NAME_TAG="${ARTIFACT_NAME}:${ARTIFACT_TAG}"
 
-# echo repo & artifact
-# echo "REPO: ${REPO_NAME}"
+echo ""
+echo "-------------------------------------"
+echo "URL: ${JF_PLATFORM_URL}"
+echo "USER: ${JF_TOKEN_USER}"
+# echo "PORT: ${JF_PLATFORM_PORT}"
+# echo "TOKEN: ${JF_ACCESS_TOKEN}"
+echo "REPO: ${REPO_NAME}"
 # echo "ARTIFACT ORG: ${ARTIFACT_ORG}"
 # echo "ARTIFACT NAME: ${ARTIFACT_NAME}"
 # echo "ARTIFACT TAG: ${ARTIFACT_TAG}"
 # echo "ARTIFACT NAME TAG: ${ARTIFACT_NAME_TAG}"
-
+echo "-------------------------------------"
+echo ""
 # enable repo indexing
 # curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/repositories/${REPO_NAME}" \
 #   -H "Content-Type: application/json" \
 #   -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}"
-
-curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/repositories/${REPO_NAME}" \
+echo "-------------------------------------"
+echo "Enabling Xray for ${REPO_NAME} repo"
+echo "-------------------------------------"
+curl -XPOST "${JF_PLATFORM_URL}/artifactory/api/repositories/${REPO_NAME}" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+  -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" \
   -d '{ 
     "LOCAL": [
       {
@@ -90,15 +121,22 @@ curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/repositories
     ]
   }'
 
+if [ $? -eq 0 ]; then
+    echo ""
+else
+    echo "Previous command was unsuccessful"
+    exit 1
+fi
+
 # configure repo for scan
 
 # curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config/${REPO_NAME}" \
 #   -H "Content-Type: application/json" \
 #   -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" 
 
-curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
+curl -XPUT "${JF_PLATFORM_URL}/xray/api/v1/repos_config" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+  -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" \
   -d '{ 
   "repo_name": '"\"${REPO_NAME}\""', 
   "repo_config": { 
@@ -113,39 +151,53 @@ curl -XPUT "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/repos_config" \
     "retention_in_days": 30 
   } 
 }'
-
+if [ $? -eq 0 ]; then
+    echo ""
+else
+    echo "Previous command was unsuccessful"
+    exit 1
+fi
 # # prep a sample docker image to scan (assumes docker runtime is running)
+echo ""
+echo "Executing \"docker pull $ARTIFACT_ORG/$ARTIFACT_NAME_TAG\""
 docker pull ${ARTIFACT_ORG}/${ARTIFACT_NAME_TAG}
 
 # # upload the webgoat (assumes boaz-docker-local exists)
-docker login -u ${JF_TOKEN_USER} -p ${JF_REFERENCE_TOKEN} ${JF_PLATFORM_URL}
-docker tag webgoat/webgoat:latest ${JF_PLATFORM_URL:8}/${REPO_NAME}/${ARTIFACT_NAME_TAG}
-docker push ${JF_PLATFORM_URL:8}/${REPO_NAME}/${ARTIFACT_NAME_TAG}
+# docker login -u ${JF_TOKEN_USER} -p ${JF_REFERENCE_TOKEN} ${JF_PLATFORM_URL}
+export DOCKER_DOMAIN=$(echo "${JF_URL}" | sed 's/.jfrog.io/'"-${REPO_NAME}"'&/')
+echo $JF_ACCESS_TOKEN | docker login -u ${JF_TOKEN_USER} --password-stdin ${DOCKER_DOMAIN}
+docker tag webgoat/webgoat:latest ${DOCKER_DOMAIN}/${ARTIFACT_NAME_TAG}
 
+echo ""
+echo "Pushing docker image to Artifactory"
+docker push ${DOCKER_DOMAIN}/${ARTIFACT_NAME_TAG}
+
+echo ""
 # # wait for the scan to complete (need a better solution)
-sha1=$(curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/storage/${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json" \
+sha1=$(curl -sS -XGET "${JF_PLATFORM_URL}/artifactory/api/storage/${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" | jq -r '.checksums.sha1')
-sha256=$(curl -XGET "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/artifactory/api/storage/${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json" \
+  -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" | jq -r '.checksums.sha1')
+sha256=$(curl -sS -XGET "${JF_PLATFORM_URL}/artifactory/api/storage/${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" | jq -r '.checksums.sha256')
+  -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" | jq -r '.checksums.sha256')
 wait=1
 isDone="unknown"
 while [ "${isDone}" != "scanned" ]
 do
   echo "Waiting ${wait} times..."
+  echo ""
   wait=$(( $wait + 1 ))
   sleep 10
-  isDone=$(curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v1/scan/status/artifact" \
+  isDone=$(curl -sS -XPOST "${JF_PLATFORM_URL}/xray/api/v1/scan/status/artifact" \
     -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+    -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" \
     -d '{
     "repository_pkg_type": "Docker",
     "path": '\"${REPO_NAME}/${ARTIFACT_NAME}/${ARTIFACT_TAG}/manifest.json\"',
     "sha256": '\"${sha256}\"',
     "sha1": '\"${sha1}\"'
     }' | jq -r '.status')
-  echo "Scan completed? ${isDone}"
+  echo "Scan status is ${isDone}"
   if [ ${wait} -gt 60 ]
   then
     echo "Waited loooong.... breaking!"
@@ -156,16 +208,30 @@ done
 # download SBOM (CycloneDX with VEX)
 if [ "${isDone}" == "scanned" ]
 then
-  curl -XPOST "${JF_PLATFORM_URL}:${JF_PLATFORM_PORT}/xray/api/v2/component/exportDetails" \
+  echo ""
+  echo "Downloading SBOM (CycloneDX) of ${ARTIFACT_NAME}"
+  curl -sS -XPOST "${JF_PLATFORM_URL}/xray/api/v2/component/exportDetails" \
     -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${JF_REFERENCE_TOKEN}" \
+    -H "Authorization: Bearer ${JF_ACCESS_TOKEN}" \
     -d '{
     "package_type": "docker",
     "component_name": '"\"${ARTIFACT_NAME_TAG}\""',
     "path": '"\"${REPO_NAME}"/"${ARTIFACT_NAME}"/"${ARTIFACT_TAG}"/manifest.json\"',
+    "violations": true,
+    "include_ignored_violations": true,
+    "license": true,
+    "exclude_unknown": true,
+    "vulnerabilities": true,
+    "operational_risk": true,
+    "secrets": true,
+    "services": true,
+    "applications": true,
+    "output_format": "pdf",
     "cyclonedx": true,
     "cyclonedx_format": "json",
     "vex": true
     }' \
     -o "${ARTIFACT_NAME}".zip
+  echo ""
+  echo "Download Completed!"
 fi
